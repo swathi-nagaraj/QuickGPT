@@ -1,5 +1,5 @@
 import dns from 'node:dns'
-dns.setServers(['8.8.8.8', '1.1.1.1'])
+if (!process.env.VERCEL) dns.setServers(['8.8.8.8', '1.1.1.1'])
 import express from 'express'
 import 'dotenv/config'
 import cors from 'cors'
@@ -27,9 +27,13 @@ app.use('/api/credit', creditRouter)
 
 const PORT = process.env.PORT || 3000
 
+if (!process.env.VERCEL){
 app.listen(PORT, ()=>{
     console.log(`Server is running on port ${PORT}`)
 })
+}
 
 process.on('unhandledRejection', (e) => console.error('UNHANDLED:', e));
 process.on('uncaughtException', (e) => console.error('UNCAUGHT:', e));
+
+export default app
