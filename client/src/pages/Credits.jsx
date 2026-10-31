@@ -1,16 +1,71 @@
 import React, { useEffect, useState } from 'react'
 import { dummyPlans } from '../assets/assets'
 import Loading from './Loading'
+import { useAppContext } from '../context/AppContext'
+import toast from 'react-hot-toast'
 
 const Credits = () => {
 
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
+  const {token, axios, fetchUser} = useAppContext()
 
   const fetchPlans = async () => {
-    setPlans(dummyPlans)
+    try {
+      const {data} = await axios.get('/api/credit/plan', {
+        headers: {Authorization: token}
+      })
+      if(data.success){
+        setPlans(data.plans)
+      }else{
+        toast.error(data.message || 'Failed to fetch plans.')
+      }
+    } catch (error) {
+      toast.error(error.message)
+    }
     setLoading(false)
   }
+
+  const purchasePlan = async (planId) => {
+  try {
+    const {data} = await axios.post('/api/credit/purchase', {planId}, {headers: {Authorization: token}})
+    if(!data.success){
+      return toast.error(data.message)
+    }
+
+    const options = {
+      key: data.keyId,
+      amount: data.order.amount,
+      currency: data.order.currency,
+      order_id: data.order.id,
+      name: "QuickGPT",
+      description: "Credit Purchase",
+      handler: async (response) => {
+        try {
+          const verify = await axios.post('/api/credit/verify', {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            transactionId: data.transactionId
+          }, {headers: {Authorization: token}})
+
+          if(verify.data.success){
+            toast.success("Credits added!")
+            fetchUser()
+          }else{
+            toast.error(verify.data.message)
+          }
+        } catch (error) {
+          toast.error(error.message)
+        }
+      }
+    }
+
+    new window.Razorpay(options).open()
+  } catch (error) {
+    toast.error(error.message)
+  }
+}
 
   useEffect(()=>{
     fetchPlans()
@@ -34,7 +89,7 @@ const Credits = () => {
                    <h3 className='text-xl font-semibold text-gray-900 dark:text-white
                    mb-2'>{plan.name}</h3>
                    <p className='text-2xl font-bold text-purple-600 dark:text-purple-300
-                   mb-4'>${plan.price}
+                   mb-4'>₹{plan.price}
                     <span className='text-base font-normal text-gray-600
                     dark:text-purple-200'>{' '}/ {plan.credits} </span>
                    </p>
@@ -45,7 +100,7 @@ const Credits = () => {
                     ))}
                    </ul>
                 </div>
-                <button className='mt-6 bg-purple-600 hover:bg-purple-700
+                <button onClick={()=> purchasePlan(plan._id)} className='mt-6 bg-purple-600 hover:bg-purple-700
                 active:bg-purple-800 text-white font-medium py-2 rounded
                 transition-colors cursor-pointer'>Buy Now</button>
             </div>
