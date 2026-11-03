@@ -5,6 +5,7 @@ import imagekit from "../configs/imageKit.js"
 import openai from '../configs/openai.js'
 
 const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Fast fallback: oru model fail aana udane next model
 async function chatWithFallback(prompt) {
@@ -12,13 +13,36 @@ async function chatWithFallback(prompt) {
     try {
       return await openai.chat.completions.create(
         { model, messages: [{ role: "user", content: prompt }] },
-        { timeout: 25000, maxRetries: 0 }   // SDK auto-retry off
+        { timeout: 25000, maxRetries: 0 }
       );
     } catch (err) {
       console.error(`Model ${model} failed:`, err.status, err.message);
     }
   }
   throw new Error("AI is busy right now. Please try again in a moment.");
+}
+
+// Image ready aagura varaikum retry pannum
+async function fetchGeneratedImage(url) {
+  for (let attempt = 1; attempt <= 8; attempt++) {
+    const response = await axios.get(url, {
+      responseType: "arraybuffer",
+      timeout: 30000,
+      validateStatus: () => true,
+    });
+
+    const buf = Buffer.from(response.data || []);
+    const isPng = buf.slice(0, 4).toString("hex") === "89504e47";
+    const isJpeg = buf.slice(0, 2).toString("hex") === "ffd8";
+
+    if (response.status === 200 && (isPng || isJpeg)) {
+      return { buf, contentType: response.headers["content-type"] || "image/png" };
+    }
+
+    console.log(`Attempt ${attempt}: not ready ->`, buf.toString("utf8").slice(0, 80));
+    await sleep(4000);
+  }
+  throw new Error("Image generation timed out. Please try again.");
 }
 
 // Text-based AI Chat Message Controller
@@ -51,7 +75,6 @@ export const textMessageController = async (req, res) => {
 
     chat.messages.push(reply);
 
-    // rendum onnaa run aagum (sequential illa)
     await Promise.all([
       chat.save(),
       User.updateOne({ _id: userId }, { $inc: { credits: -1 } }),
@@ -86,27 +109,10 @@ export const imageMessageController = async (req, res) => {
     const encodedPrompt = encodeURIComponent(prompt);
     const generatedImageUrl = `${process.env.IMAGEKIT_URL_ENDPOINT}/ik-genimg-prompt-${encodedPrompt}/quickgpt/${Date.now()}.png?tr=w-800,h-800`;
 
-    const aiImageResponse = await axios.get(generatedImageUrl, {
-  responseType: "arraybuffer",
-  timeout: 60000,
-  validateStatus: () => true,
-});
+    // ready aagura varaikum wait pannum
+    const { buf, contentType } = await fetchGeneratedImage(generatedImageUrl);
+    const base64Image = `data:${contentType};base64,${buf.toString("base64")}`;
 
-const buf = Buffer.from(aiImageResponse.data || []);
-const contentType = aiImageResponse.headers["content-type"] || "";
-const isPng = buf.slice(0, 4).toString("hex") === "89504e47";
-const isJpeg = buf.slice(0, 2).toString("hex") === "ffd8";
-
-if (aiImageResponse.status !== 200 || !(isPng || isJpeg)) {
-  const text = buf.toString("utf8").slice(0, 300);
-  console.error("Generation failed:", aiImageResponse.status, text);
-  return res.json({
-    success: false,
-    message: `Image generation failed (${aiImageResponse.status}): ${text}`,
-  });
-}
-
-const base64Image = `data:${contentType || "image/png"};base64,${buf.toString("base64")}`;
     const uploadResponse = await imagekit.upload({
       file: base64Image,
       fileName: `${Date.now()}.png`,
