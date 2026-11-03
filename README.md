@@ -37,6 +37,4 @@ npm run dev
 Create a `.env` file in `server` with your own keys:
 `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT`
 
-## Author
 
-Swathi N
