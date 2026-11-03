@@ -87,11 +87,28 @@ export const imageMessageController = async (req, res) => {
     const generatedImageUrl = `${process.env.IMAGEKIT_URL_ENDPOINT}/ik-genimg-prompt-${encodedPrompt}/quickgpt/${Date.now()}.png?tr=w-800,h-800`;
 
     const aiImageResponse = await axios.get(generatedImageUrl, {
-      responseType: "arraybuffer",
-      timeout: 60000,
-    });
+  responseType: "arraybuffer",
+  timeout: 60000,
+  validateStatus: () => true,
+  });
 
-    const base64Image = `data:image/png;base64,${Buffer.from(aiImageResponse.data, "binary").toString("base64")}`;
+const buf = Buffer.from(aiImageResponse.data || []);
+const contentType = aiImageResponse.headers["content-type"] || "";
+const isPng = buf.slice(0, 4).toString("hex") === "89504e47";
+const isJpeg = buf.slice(0, 2).toString("hex") === "ffd8";
+
+console.log("ImageKit gen:", aiImageResponse.status, contentType, buf.length);
+
+if (aiImageResponse.status !== 200 || !(isPng || isJpeg)) {
+  const text = buf.toString("utf8").slice(0, 300);
+  console.error("Generation failed:", text);
+  return res.json({
+    success: false,
+    message: `Image generation failed (${aiImageResponse.status}): ${text}`,
+  });
+}
+
+const base64Image = `data:${contentType || "image/png"};base64,${buf.toString("base64")}`;  
 
     const uploadResponse = await imagekit.upload({
       file: base64Image,
