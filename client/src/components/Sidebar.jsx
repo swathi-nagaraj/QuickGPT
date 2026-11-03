@@ -26,13 +26,13 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen }) => {
             toast.success(data.message)
         }
     } catch (error) {
-        toast.success(error.message)
+        toast.error(error.message)
     }
   }
 
 
   return (
-    <div className={`flex flex-col h-screen min-w-72 p-5 dark:bg-gradient-to-b from-[#242124]/30 to-[#000000]/30 border-r border-[#80609F]/30 backdrop-blur-3xl transition-all duration-500 max-md:absolute left-0 z-1 ${!isMenuOpen && 'max-md:-translate-x-full'}`}>
+    <div className={`flex flex-col h-dvh min-w-72 p-5 dark:bg-gradient-to-b from-[#242124]/30 to-[#000000]/30 border-r border-[#80609F]/30 backdrop-blur-3xl transition-all duration-500 max-md:absolute left-0 z-1 ${!isMenuOpen && 'max-md:-translate-x-full'}`}>
         {/* Logo */}
         <img src={theme === 'dark' ? assets.logo_full : assets.logo_full_dark} alt="" className='w-full max-w-48' />
 
@@ -50,7 +50,7 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen }) => {
 
         {/* Recent Chats */}
         {chats.length > 0 && <p className='mt-4 text-sm'>Recent Chats</p>}
-        <div className='flex-1 overflow-y-scroll mt-3 text-sm space-y-3'>
+        <div className='flex-1 min-h-0 overflow-y-auto mt-3 text-sm space-y-3'>
             { 
                 chats.filter((chat)=> chat.messages[0] ? chat.messages[0]?.content.
                 toLowerCase().includes(search.toLowerCase()) : chat.name.toLowerCase().
@@ -67,8 +67,9 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen }) => {
                                 {moment(chat.updatedAt).fromNow()}
                             </p>
                         </div>
-                        <img src={assets.bin_icon} className='hidden group-hover:block
-                        w-4 cursor-pointer not-dark:invert' alt="" onClick={e => toast.promise(deleteChat(e,chat._id), {loading: 'deleting..'})} />
+                        <img src={assets.bin_icon}
+                        className='md:hidden md:group-hover:block w-4 cursor-pointer not-dark:invert'
+                        alt="" onClick={e => toast.promise(deleteChat(e,chat._id), {loading: 'deleting..'})} />
                     
                     </div>
                 ))
@@ -118,11 +119,12 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen }) => {
 
         {/* User Account */}
         <div
-          className='flex items-center gap-3 gap-2 p-3 mt-4 border border-gray-300
+          className='flex items-center gap-3 p-3 mt-4 border border-gray-300
           dark:border-white/15 rounded-md cursor-pointer group'>
             <img src={assets.user_icon} className='w-7 rounded-full' alt="" />
             <p className='flex-1 text-sm dark:text-primary truncate'>{user ? user.name : 'Login your account'}</p>
-            {user && <img onClick={logout} src={assets.logout_icon} className='h-5 cursor-pointer hidden not-dark:invert group-hover:block' alt="" />}
+            {user && <img onClick={logout} src={assets.logout_icon}
+              className='h-5 cursor-pointer md:hidden md:group-hover:block not-dark:invert' alt="" />}
         </div>
         
         <img onClick={() => setIsMenuOpen(false)} src={assets.close_icon} className='absolute top-3 right-3 w-5 h-5 cursor-pointer md:hidden not-dark:invert' alt="" />
@@ -133,4 +135,3 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen }) => {
 }
 
 export default Sidebar;
-
