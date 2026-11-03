@@ -90,26 +90,23 @@ export const imageMessageController = async (req, res) => {
   responseType: "arraybuffer",
   timeout: 60000,
   validateStatus: () => true,
-  });
+});
 
 const buf = Buffer.from(aiImageResponse.data || []);
 const contentType = aiImageResponse.headers["content-type"] || "";
 const isPng = buf.slice(0, 4).toString("hex") === "89504e47";
 const isJpeg = buf.slice(0, 2).toString("hex") === "ffd8";
 
-console.log("ImageKit gen:", aiImageResponse.status, contentType, buf.length);
-
 if (aiImageResponse.status !== 200 || !(isPng || isJpeg)) {
   const text = buf.toString("utf8").slice(0, 300);
-  console.error("Generation failed:", text);
+  console.error("Generation failed:", aiImageResponse.status, text);
   return res.json({
     success: false,
     message: `Image generation failed (${aiImageResponse.status}): ${text}`,
   });
 }
 
-const base64Image = `data:${contentType || "image/png"};base64,${buf.toString("base64")}`;  
-
+const base64Image = `data:${contentType || "image/png"};base64,${buf.toString("base64")}`;
     const uploadResponse = await imagekit.upload({
       file: base64Image,
       fileName: `${Date.now()}.png`,
